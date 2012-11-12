@@ -358,6 +358,10 @@ describe MetaTags::ViewHelper do
       subject.display_meta_tags(:testing => 'this is a test').should include('<meta content="this is a test" name="testing" />')
     end
 
+    it 'not show nil' do
+      subject.display_meta_tags(:testing => nil).should_not include('<meta name="testing" />')
+    end
+
     it 'should display place:location:latitude place:location:location' do
       subject.display_meta_tags(
         place:{

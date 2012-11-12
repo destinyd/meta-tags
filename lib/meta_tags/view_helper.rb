@@ -197,7 +197,7 @@ module MetaTags
           tags = custom_hash_to_tags(name,content)
           result += tags
         else
-          result << tag(:meta, :name => name, :content => content)
+          result << tag(:meta, :name => name, :content => content) unless content.blank?
         end
       end
 
@@ -212,7 +212,7 @@ module MetaTags
           result += custom_hash_to_tags([name,key].join(':'),value)
         end
       else
-        result << tag(:meta, :name => name, :content => content)
+        result << tag(:meta, :name => name, :content => content) unless content.blank?
       end
       result
     end
