@@ -357,6 +357,27 @@ describe MetaTags::ViewHelper do
     it 'should display testing meta tag' do
       subject.display_meta_tags(:testing => 'this is a test').should include('<meta content="this is a test" name="testing" />')
     end
+
+    it 'should display place:location:latitude place:location:location' do
+      subject.display_meta_tags(
+        place:{
+            location:
+            {
+              latitude: 24,
+              longitude: 20
+            }
+          }
+      ).should include(['<meta content="24" name="place:location:latitude" />','<meta content="20" name="place:location:longitude" />'].join("\n"))
+    end
+  end
+
+  it '.costom_hash_to_tags' do
+    subject.custom_hash_to_tags('place',location:
+            {
+              latitude: 11,
+              longitude: 22
+            }
+).should == ['<meta content="11" name="place:location:latitude" />','<meta content="22" name="place:location:longitude" />']
   end
 
   it_behaves_like '.set_meta_tags'

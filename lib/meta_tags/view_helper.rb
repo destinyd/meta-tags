@@ -193,11 +193,28 @@ module MetaTags
 	       	:description, :keywords, :noindex,
 	       	:nofollow, :canonical, :open_graph].include? name
 
-        result << tag(:meta, :name => name, :content => content)
+        if content.class == Hash
+          tags = custom_hash_to_tags(name,content)
+          result += tags
+        else
+          result << tag(:meta, :name => name, :content => content)
+        end
       end
 
       result = result.join("\n")
       result.respond_to?(:html_safe) ? result.html_safe : result
+    end
+
+    def custom_hash_to_tags name,content
+      result = []
+      if content.class == Hash
+        content.each do |key,value|
+          result += custom_hash_to_tags([name,key].join(':'),value)
+        end
+      else
+        result << tag(:meta, :name => name, :content => content)
+      end
+      result
     end
 
     # Returns full page title as a string without surrounding <title> tag.
