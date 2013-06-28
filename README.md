@@ -105,6 +105,64 @@ Further reading:
 * [About rel="canonical"](http://www.google.com/support/webmasters/bin/answer.py?hl=en&answer=139394)
 * [Canonicalization](http://www.google.com/support/webmasters/bin/answer.py?hl=en&answer=139066)
 
+### Pagination links
+
+Previous and next links indicate indicate the relationship between individual
+URLs. Using these attributes is a strong hint to Google that you want us to
+treat these pages as a logical sequence.
+
+    set_meta_tags :prev => "http://yoursite.com/url?page=1"
+    # <link rel="prev" href="http://yoursite.com/url?page=1" />
+    set_meta_tags :next => "http://yoursite.com/url?page=3"
+    # <link rel="next" href="http://yoursite.com/url?page=3" />
+
+Further reading:
+
+* [Pagination](http://support.google.com/webmasters/bin/answer.py?hl=en&answer=1663744)
+* [Pagination with rel="next" and rel="prev"](http://googlewebmastercentral.blogspot.ca/2011/09/pagination-with-relnext-and-relprev.html)
+
+### Refresh interval and redirect URL
+
+Meta refresh is a method of instructing a web browser to automatically
+refresh the current web page or frame after a given time interval. It is also
+possible to instruct the browser to fetch a different URL when the page is
+refreshed, by including the alternative URL in the content parameter. By
+setting the refresh time interval to zero (or a very low value), this allows
+meta refresh to be used as a method of URL redirection.
+
+    set_meta_tags :refresh => 5
+    # <meta content="5" http-equiv="refresh" />
+    set_meta_tags :refresh => '5;url=http://example.com'
+    # <meta content="5;url=http://example.com" http-equiv="refresh" />
+
+Further reading:
+
+* [Meta refresh](http://en.wikipedia.org/wiki/Meta_refresh)
+* [What is the Meta Refresh Tag](http://webdesign.about.com/od/metataglibraries/a/aa080300a.htm)
+
+### Hashes
+
+Any namespace can be built just passing any symbol name and a Hash. For example:
+
+    set_meta_tags :foo => {
+      :bar => "lorem",
+      :baz => {
+        :qux => "ipsum"
+      }
+    }
+    # <meta property="foo:bar" content="lorem"/>
+    # <meta property="foo:baz:qux" content="ipsum"/>
+
+### Arrays
+
+Repeated meta tags can be built just using an Array inside a Hash. For example:
+
+    set_meta_tags :og => {
+        :image = ["http://example.com/rock.jpg", "http://example.com/rock2.jpg"]
+    }
+    #<meta property="og:image" content="http://example.com/rock.jpg" />
+    #<meta property="og:image" content="http://example.com/rock2.jpg" />
+
 ### Open Graph
 
 To turn your web pages into graph objects, you'll need to add Open Graph
@@ -112,20 +170,62 @@ protocol `<meta>` tags to your webpages. The tags allow you to specify
 structured information about your web pages. The more information you provide, the more opportunities your web pages can be surfaced within Facebook today
 and in the future. Here's an example for a movie page:
 
-    set_meta_tags :open_graph => {
-      :title => 'The Rock',
-      :type  => :movie,
-      :url   => 'http://www.imdb.com/title/tt0117500/',
-      :image => 'http://ia.media-imdb.com/rock.jpg'
+    set_meta_tags :og => {
+      :title    => 'The Rock',
+      :type     => 'video.movie',
+      :url      => 'http://www.imdb.com/title/tt0117500/',
+      :image    => 'http://ia.media-imdb.com/rock.jpg',
+      :video    => {
+        :director => 'http://www.imdb.com/name/nm0000881/',
+        :writer   => ['http://www.imdb.com/name/nm0918711/', 'http://www.imdb.com/name/nm0177018/']
+      }
     }
     # <meta property="og:title" content="The Rock"/>
-    # <meta property="og:type" content="movie"/>
+    # <meta property="og:type" content="video.movie"/>
     # <meta property="og:url" content="http://www.imdb.com/title/tt0117500/"/>
     # <meta property="og:image" content="http://ia.media-imdb.com/rock.jpg"/>
+    # <meta property="og:video:director" content="http://www.imdb.com/name/nm0000881/"/>
+    # <meta property="og:video:writer" content="http://www.imdb.com/name/nm0918711/"/>
+    # <meta property="og:video:writer" content="http://www.imdb.com/name/nm0177018/"/>
 
 Further reading:
 
 * [Open Graph protocol](http://developers.facebook.com/docs/opengraph/)
+
+### Twitter Cards
+
+Twitter cards make it possible for you to attach media experiences to Tweets that link to your content.
+There are 3 card types (summary, photo and player). Here's an example for summary:
+
+    set_meta_tags :twitter => {
+      :card => "summary",
+      :site => "@username"
+    }
+    # <meta property="twitter:card" content="summary"/>
+    # <meta property="twitter:site" content="@username"/>
+
+Take in consideration that if you're already using OpenGraph to describe data on your page, it’s easy to generate a Twitter card without duplicating your tags and data. When the Twitter card processor looks for tags on your page, it first checks for the Twitter property, and if not present, falls back to the supported Open Graph property. This allows for both to be defined on the page independently, and minimizes the amount of duplicate markup required to describe your content and experience.
+
+Further reading:
+
+* [Twitter Cards Documentation](https://dev.twitter.com/docs/cards/)
+
+### Custom meta tags
+
+Starting from version 1.3.1, you can specify arbitrary meta tags, and they will
+be rendered on the page, even if meta-tags gem does not know about them.
+
+Example:
+
+    set_meta_tags :author => "Dmytro Shteflyuk"
+    # <meta name="author" content="Dmytro Shteflyuk"/>
+
+You can also specify value as an Array, and values will be displayed as a list
+of `meta` tags:
+
+    set_meta_tags :author => [ "Dmytro Shteflyuk", "John Doe" ]
+    # <meta name="author" content="Dmytro Shteflyuk"/>
+    # <meta name="author" content="John Doe"/>
 
 ## MetaTags Usage
 
@@ -173,6 +273,9 @@ To set meta tags you can use following methods:
     <% title 'Member Login' %>
     <% description 'Member login page.' %>
     <% keywords 'Member login page.' %>
+    <% nofollow %>
+    <% noindex %>
+    <% refresh 3 %>
 
 Also there is `set_meta_tags` method exists:
 
@@ -205,7 +308,11 @@ Use these options to customize the title format:
 * `:noindex` — add noindex meta tag; when true, 'robots' will be used, otherwise the string will be used;
 * `:nofollow` — add nofollow meta tag; when true, 'robots' will be used, otherwise the string will be used;
 * `:canonical` — add canonical link tag;
-* `:open_graph` — add Open Graph tags (Hash).
+* `:prev` — add prev link tag;
+* `:prev` — add next link tag;
+* `:og` — add Open Graph tags (Hash);
+* `:twitter` — add Twitter tags (Hash);
+* `:refresh` — refresh interval and optionally url to redirect to.
 
 And here are a few examples to give you ideas.
 
@@ -213,7 +320,7 @@ And here are a few examples to give you ideas.
     <%= display_meta_tags :prefix => false, :separator => ":" %>
     <%= display_meta_tags :lowercase => true %>
     <%= display_meta_tags :reverse => true, :prefix => false %>
-    <%= display_meta_tags :open_graph => { :title => 'The Rock', :type => 'movie' } %>
+    <%= display_meta_tags :og => { :title => 'The Rock', :type => 'video.movie' } %>
 
 ### Allowed values
 
@@ -265,19 +372,6 @@ And in your pjax templates:
         <!-- HTML goes here -->
     <% end %>
 
-## Alternatives
+## Author
 
-There are several plugins influenced me to create this one:
-
-* [Headliner](https://github.com/mokolabs/headliner)
-* [meta\_on_rals](https://github.com/ashchan/meta_on_rails)
-
-## Credits
-
-* [Dmytro Shteflyuk](https://github.com/kpumuk) (author)
-* [Morgan Roderick](https://github.com/mroderick) (contributor)
-* [Jesse Clark](https://github.com/jesseclark) (contributor)
-* Sergio Cambra (contributor)
-* Kristoffer Renholm (contributor)
-* [Jürg Lehni](https://github.com/lehni) (contributor)
-* [Tom Coleman](https://github.com/tmeasday) (contributor)
+[Dmytro Shteflyuk](https://github.com/kpumuk), [http://kpumuk.info](http://kpumuk.info/)

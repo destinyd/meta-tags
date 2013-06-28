@@ -4,7 +4,7 @@ module MetaTags
   module ViewHelper
     # Get meta tags for the page.
     def meta_tags
-      @meta_tags ||= {}
+      @meta_tags ||= HashWithIndifferentAccess.new
     end
 
     # Set meta tags for the page.
@@ -105,7 +105,7 @@ module MetaTags
     #
     # @see #display_meta_tags
     #
-    def noindex(noindex)
+    def noindex(noindex = true)
       set_meta_tags(:noindex => noindex)
       noindex
     end
@@ -121,9 +121,25 @@ module MetaTags
     #
     # @see #display_meta_tags
     #
-    def nofollow(nofollow)
+    def nofollow(nofollow = true)
       set_meta_tags(:nofollow => nofollow)
       nofollow
+    end
+
+    # Set the refresh meta tag
+    #
+    # @param [Integer, String] refresh a refresh value.
+    # @return [Integer, String] passed value.
+    #
+    # @example
+    #   refresh 5
+    #   refresh "5;url=http://www.example.com/"
+    #
+    # @see #display_meta_tags
+    #
+    def refresh(refresh)
+      set_meta_tags(:refresh => refresh)
+      refresh
     end
 
     # Set default meta tag values and display meta tags. This method
@@ -142,6 +158,9 @@ module MetaTags
     # @option default [Boolean, String] :noindex (false) add noindex meta tag; when true, 'robots' will be used, otherwise the string will be used;
     # @option default [Boolean, String] :nofollow (false) add nofollow meta tag; when true, 'robots' will be used, otherwise the string will be used;
     # @option default [String] :canonical (nil) add canonical link tag.
+    # @option default [String] :prev (nil) add prev link tag;
+    # @option default [String] :next (nil) add next link tag.
+    # @option default [String, Integer] :refresh (nil) meta refresh tag;
     # @option default [Hash] :open_graph ({}) add Open Graph meta tags.
     # @return [String] HTML meta tags to render in HEAD section of the
     #   HTML document.
@@ -157,14 +176,15 @@ module MetaTags
       result = []
 
       # title
-      result << content_tag(:title, build_full_title(meta_tags))
+      title = build_full_title(meta_tags)
+      result << content_tag(:title, title) unless title.blank?
 
       # description
-      description = normalize_description(meta_tags[:description])
+      description = normalize_description(meta_tags.delete(:description))
       result << tag(:meta, :name => :description, :content => description) unless description.blank?
 
       # keywords
-      keywords = normalize_keywords(meta_tags[:keywords])
+      keywords = normalize_keywords(meta_tags.delete(:keywords))
       result << tag(:meta, :name => :keywords, :content => keywords) unless keywords.blank?
 
       # noindex & nofollow
@@ -175,17 +195,38 @@ module MetaTags
         content = [meta_tags[:noindex] && 'noindex', meta_tags[:nofollow] && 'nofollow'].compact.join(', ')
         result << tag(:meta, :name => noindex_name, :content => content) unless content.blank?
       else
-        result << tag(:meta, :name => noindex_name,  :content => 'noindex')  if meta_tags[:noindex]
-        result << tag(:meta, :name => nofollow_name, :content => 'nofollow') if meta_tags[:nofollow]
+        result << tag(:meta, :name => noindex_name,  :content => 'noindex')  if meta_tags[:noindex] && meta_tags[:noindex] != false
+        result << tag(:meta, :name => nofollow_name, :content => 'nofollow') if meta_tags[:nofollow] && meta_tags[:nofollow] != false
+      end
+      meta_tags.delete(:noindex)
+      meta_tags.delete(:nofollow)
+
+      # refresh
+      if refresh = meta_tags.delete(:refresh)
+        result << tag(:meta, 'http-equiv' => 'refresh', :content => refresh.to_s) unless refresh.blank?
       end
 
-      # Open Graph
-      (meta_tags[:open_graph] || {}).each do |property, content|
-        result << tag(:meta, :property => "og:#{property}", :content => content)
+      # hashes
+      meta_tags.each do |property, data|
+        if data.is_a?(Hash)
+          result.concat process_tree(property, data)
+          meta_tags.delete(property)
+        end
       end
 
-      # canonical
-      result << tag(:link, :rel => :canonical, :href => meta_tags[:canonical]) unless meta_tags[:canonical].blank?
+      # canonical, prev and next
+      [ :canonical, :prev, :next ].each do |tag_name|
+        next unless href = meta_tags.delete(tag_name)
+        result << tag(:link, :rel => tag_name, :href => href)
+      end
+
+      # user defined
+      meta_tags.each do |name, data|
+        Array(data).each do |val|
+          result << tag(:meta, :name => name, :content => val)
+        end
+        meta_tags.delete(name)
+      end
 
       meta_tags.each do |name, content|
         next if [:prefix, :suffix, :separator,
@@ -247,6 +288,25 @@ module MetaTags
 
     private
 
+      # Recursive function to process all the hashes and arrays on meta tags
+      def process_tree(property, content)
+        result = []
+        if content.is_a?(Hash)
+          content.each do |key, value|
+            result.concat process_tree("#{property}:#{key}", value)
+          end
+        else
+          Array(content).each do |c|
+            if c.is_a?(Hash)
+              result.concat process_tree(property, c)
+            else
+              result << tag(:meta, :property => "#{property}", :content => c) unless c.blank?
+            end
+          end
+        end
+        result
+      end
+
       def normalize_title(title)
         Array(title).map { |t| h(strip_tags(t)) }
       end
@@ -263,43 +323,48 @@ module MetaTags
       end
 
       def normalize_open_graph(meta_tags)
-        meta_tags ||= {}
-        meta_tags[:open_graph] = meta_tags.delete(:og) if meta_tags.key?(:og)
+        meta_tags = (meta_tags || {}).with_indifferent_access
+        meta_tags[:og] = meta_tags.delete(:open_graph) if meta_tags.key?(:open_graph)
         meta_tags
       end
 
       def build_full_title(meta_tags)
         # Prefix (leading space)
         prefix = meta_tags[:prefix] === false ? '' : (meta_tags[:prefix] || ' ')
+        meta_tags.delete(:prefix)
 
         # Separator
         separator = meta_tags[:separator] === false ? '' : (meta_tags[:separator] || '|')
 
         # Suffix (trailing space)
         suffix = meta_tags[:suffix] === false ? '' : (meta_tags[:suffix] || ' ')
+        meta_tags.delete(:suffix)
 
         # Special case: if separator is hidden, do not display suffix/prefix
         if meta_tags[:separator] == false
           prefix = suffix = ''
         end
+        meta_tags.delete(:separator)
 
         # Title
-        title = meta_tags[:title]
-        if meta_tags[:lowercase] === true and !title.blank?
+        title = meta_tags.delete(:title)
+        if meta_tags.delete(:lowercase) === true and !title.blank?
           title = Array(title).map { |t| t.downcase }
         end
 
         # title
         if title.blank?
-          meta_tags[:site]
+          meta_tags.delete(:reverse)
+          meta_tags.delete(:site)
         else
           title = normalize_title(title)
           title.unshift(h(meta_tags[:site])) unless meta_tags[:site].blank?
-          title.reverse! if meta_tags[:reverse] === true
+          title.reverse! if meta_tags.delete(:reverse) === true
           sep = h(prefix) + h(separator) + h(suffix)
           title = title.join(sep)
           # We escaped every chunk of the title, so the whole title should be HTML safe
           title = title.html_safe if title.respond_to?(:html_safe)
+          meta_tags.delete(:site)
           title
         end
       end
