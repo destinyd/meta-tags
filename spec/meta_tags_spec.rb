@@ -516,7 +516,7 @@ describe MetaTags::ViewHelper do
               longitude: 20
             }
           }
-      ).should include(['<meta content="24" name="place:location:latitude" />','<meta content="20" name="place:location:longitude" />'].join("\n"))
+      ).should include(['<meta content="24" property="place:location:latitude" />','<meta content="20" property="place:location:longitude" />'].join("\n"))
     end
   end
 
